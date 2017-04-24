@@ -23,6 +23,8 @@ class Planet:
 	# Class variables shared by all instances go here
 	SMOOTHAMOUNT = 3 # How many times to run Chaiken across the points
 	TWOPI = pi*2.0
+	MAXSPIN = TWOPI/16
+	MAXRINGSIZE = 2 # pixels
 	# End Class variables
 	
 	def __init__(self, name, radius, angvelocity, colcrust, colcore):
@@ -42,8 +44,10 @@ class Planet:
 		for i in xrange(0,segments):
 			self.crust.append((crustradius+randint(0,5)*0.01)) # ToDo: Add height variation
 			self.core.append((coreradius+randint(0,10)*0.01)) # ToDo: Add height variation
-	
+		self.angvelocity = angvelocity # angular velocity
 		self.surfacefeatures = []
+		self.ringing = 0
+		self.ringsize = 0
 	
 	def addSurfaceFeature(self, angle, type, name, points):
 		self.surfacefeatures.append((angle,type,name,points))
@@ -54,6 +58,10 @@ class Planet:
 			self.rotation = self.rotation-self.TWOPI
 		if self.rotation < pi:
 			self.rotation = self.rotation+self.TWOPI
+		if self.angvelocity > self.MAXSPIN:
+			self.angvelocity = self.MAXSPIN
+		if self.angvelocity < -self.MAXSPIN:
+			self.angvelocity = -self.MAXSPIN
 
 	def impactsHandler(self):
 		# An object impacted at a particular angle. Process it by adjusting the crust
@@ -61,7 +69,7 @@ class Planet:
 		if len(self.impacts) > 0:
 			angledelta = pi*2.0/len(self.crust) # number of angular divisions
 			halfangledelta = angledelta/2
-			for (a,sz) in self.impacts:
+			for (a,sz,v) in self.impacts:
 				while a < -pi:
 					a = a+self.TWOPI
 				while a > pi:
@@ -70,9 +78,22 @@ class Planet:
 				angle = -pi
 				i = 0
 				R = []
+				
 				while angle < pi and i < len(self.crust):
-					if a >= angle-halfangledelta and a < angle+halfangledelta:
+					if a >= angle-halfangledelta and a < angle+halfangledelta: # impact!
 						R.append((self.crust[i]-0.1))
+						# handle velocity vector
+						# add spin quantum for each collision, adjusted by the vector tangent to the "a" normal
+						mdir,spd = v
+						mdir = mdir - a # Find the angular difference
+						spd = sz*spd / 100
+						angvdelta = spd*sin(mdir) # tangent
+						print angvdelta
+						self.angvelocity = self.angvelocity - angvdelta*pi/180
+						self.ringing = self.ringing+abs(sz)+self.MAXRINGSIZE
+						self.ringsize = self.ringsize+abs(sz)
+						if self.ringsize > self.MAXRINGSIZE:
+							self.ringsize = self.MAXRINGSIZE
 					else:
 						R.append((self.crust[i]))
 					i = i+1
@@ -87,6 +108,9 @@ class Planet:
 		height = surface.get_height()
 		(ox,oy) = centre # View port co-ordinates to centre the planet on.
 		#print centre
+		
+		# updates
+		self.rotate(self.angvelocity)
 		# Draw everything!
 		pixels = pygame.PixelArray(surface)
 
@@ -103,7 +127,14 @@ class Planet:
 			x = d*cos(a)
 			y = d*sin(a)
 
-			P.append((x+ox,y+oy,0)) # ToDo: Utilise z. Currently ignored
+			deltax = 0
+			deltay = 0
+			if self.ringing > 0: # Collisions shake the planet
+				gg = self.ringing/self.ringsize # tends to zero
+				magnitude = self.ringsize*sin(pi/2*gg)# So it settles down
+				deltax = randint(int(-self.ringsize),int(self.ringsize))*magnitude
+				deltay = randint(int(-self.ringsize),int(self.ringsize))*magnitude
+			P.append((x+ox+deltax,y+oy+deltay,0)) # ToDo: Utilise z. Currently ignored
 			if d > 50:
 				drawdetail = True
 			count = count+1
@@ -163,6 +194,7 @@ class Planet:
 						pixels[x][y] = self.colcrust				
 
 				# The points of a surface feature are defined as if the object is based at angle 0
-
+		if self.ringing > 0:
+			self.ringing = self.ringing-1
 
 			
