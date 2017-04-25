@@ -40,10 +40,13 @@ def doit():
 	COL_CANVAS = (0,0,0,0)
 	LEFT = 1 # Mouse event
 	RIGHT = 3 # Mouse event
-	
+	MAXCLICKFRAME = 16
+	COL_CLICK = (255,255,255,255)
 	img = pygame.image.load('input.png')
+	backgroundimage = img
 	width = img.get_width()
 	height = img.get_height()
+	
 	centre = (width>>1,height>>1)
 
 	surface = pygame.display.set_mode((width, height)) # A copy of the source image in size
@@ -58,41 +61,33 @@ def doit():
 	PLANETS = []
 	TILESIZE = 600
 	
+	print "Window resolution: "
 	print height,width
 	
 	numrows = int(height/TILESIZE)
 	numcols = int(width/TILESIZE)
 	
-#	for x in xrange(0,numcols):
-#		for y in xrange(0,numrows):
 	C = choosePalette()
 	(r,g,b) = C[0]
 	(r1,g1,b1) = (255,255,0)
 	name = "Planet X"
 	thePlanet = Planet(name, 1.0, 0, (r,g,b,255), (r1,g1,b1,255))
 
-	#for i in xrange(0,randint(256,256)):
-	#	objheight = randint(1,4)*3
-	#	objwidth = 2
-	#	thePlanet.addSurfaceFeature(random()*pi*2.0, "Building", "Skyscraper", 
-	#	[
-	#	(0,-objwidth),(0,-objwidth),
-	#	(objheight,-objwidth),(objheight,-objwidth),
-	#	(objheight,objwidth),(objheight,objwidth),
-	#	(0,objwidth),(0,objwidth),
-	#	])
-	
 	PLANETS.append((thePlanet, (0,0), name, TILESIZE/(randint(3,7)), pi*2.0/720 ))
 	
-	
-#	thePlanet = Planet("The Planet", (255,210,192,255), (255,255,0,255))
-#	planetscale = width>>2
-#	planetrotatedelta = pi*2.0/360
-	
-	MISSILES = []
+	MISSILES = [] # All the moving things
+	CLICKANIM = [] # Animated places where the player has clicked
 	
 	lastclickloc = (0,0)
+
+	scorefont = pygame.font.SysFont("monospace", 15)
+	playerScore = 0
 	
+	wavecount = 1
+	wavelength = 200 # frames
+	wavepos = 0
+	wavestep = pi/2.0/float(wavelength)
+	print wavecount,wavelength,wavepos,wavestep
 	while True: # main game loop
 		mouseClicked = False
 		iterationCount = iterationCount+1
@@ -116,6 +111,7 @@ def doit():
  			elif event.type == MOUSEBUTTONUP:
 				if event.button == LEFT: # Have we clicked on an asteroid?
 					(px,py) = event.pos
+					CLICKANIM.append((px,py,MAXCLICKFRAME))
 					lx,ly = lastclickloc
 					dx = px-lx
 					dy = py-ly
@@ -131,12 +127,13 @@ def doit():
 								dy = py-my
 								distance = sqrt(dx**2+dy**2)
 
-								if distance < mr*2 or distance < 20: # Kludgy
+								if distance < mr*2 or distance < MAXCLICKFRAME: # Kludgy
 									angle = atan2(dy,dx)
 									# print missile.name+" destroyed "
 									missile.alive = False
+									playerScore = playerScore+mr
 									
-									if mr > 10:
+									if mr > 10 and len(MISSILES) < 100:
 										# print missile.name+" fragmented "
 										(ang,speed) = missile.velocity
 										newDir = random()*2.0*pi
@@ -147,6 +144,7 @@ def doit():
 											newMissileObj = Planet(name, 0.1, randint(1,15)*pi/360, (192,148,92,255), (100,100,0,255))
 											NEWMISSILES.append((newMissile,newMissileObj,int(mr)>>1))
 											dang = dang+dang
+										
 					
 						mouseClicked = True
 				elif event.button == RIGHT: # Create a new asteroid
@@ -169,7 +167,8 @@ def doit():
 					print "Key press: "+str(event.key)
 
 		# Draw
-		surface.fill(COL_CANVAS)
+		#surface.fill(COL_CANVAS)
+		surface.blit(backgroundimage,[0,0])
 #		thePlanet.draw(surface,centre,planetscale)
 		for ((thePlanet, (x,y), name, scale, rotationdelta )) in PLANETS:
 			# print x,y
@@ -197,10 +196,37 @@ def doit():
 				(x,y) = missile.position
 				if x > -width and x < width<<1 and y > -height and y < height<<1: # only draw within a local area
 					missileobj.draw(surface,missile.position,radius)
-		pygame.display.update()
 		
-		# Other Simulation updates
+		NEWCLICKANIM = []
+		for (x,y,frame) in CLICKANIM:
+			# print x,y,frame
+			if frame > 0:
+				frame = frame - 1
+				for i in xrange(-frame,frame+1):
+					
+					pixels[x+i][y-frame] = COL_CLICK
+					pixels[x+i][y+frame] = COL_CLICK
+					pixels[x+frame][y+i] = COL_CLICK
+					pixels[x-frame][y+i] = COL_CLICK
+				NEWCLICKANIM.append((x,y,frame))
+		CLICKANIM = NEWCLICKANIM
+		
+		del pixels
+		# Overlays and labels
 		(ox,oy) = centre
+		
+		# Display the score
+		scorelabel = scorefont.render(str(int(playerScore)) , 1, (255,190,120))
+		wavelabel = scorefont.render("W."+str(int(wavecount)) , 1, (128,190,255))
+		
+		slw = scorelabel.get_width()
+		slh = scorelabel.get_height()
+
+		surface.blit(scorelabel, (ox-(slw>>1), oy-(slh>>1)))
+		surface.blit(wavelabel, (ox-(slw>>1), oy-(slh>>1)+10))
+		pygame.display.update()
+					
+		# Other Simulation updates
 		for (missile,missileobj,radius) in MISSILES:
 			if missile.alive == True:
 				missile.move()
@@ -246,5 +272,27 @@ def doit():
 			thePlanet.debris = []
 		for missile in NEWMISSILES:
 			MISSILES.append(missile)
+		
+		# Enemy wave logic (Temporary)
+		if iterationCount%wavelength == 0:
+			wavecount = wavecount +1
+		wavepos = wavepos+wavestep
+		if wavepos > pi*2.0:
+			wavepos = 0
+		if 10.0*random() < sin(wavepos): # Spawn a new asteroid
+			radius = (width>>1)+width
+			# print radius
+			angle = random()*pi*2.0
+
+			NUMFRAGS = (wavecount>>1)+1
+			for i in xrange(0,NUMFRAGS):
+				newDir = angle+pi+randint(-2,2)*pi/720
+				speed = randint(5,20)
+				name = "Wave Chunk"
+				newMissile = Missile(name,(ox + radius*cos(angle),oy + radius*sin(angle)),(newDir,speed/randint(1,5)))
+				newMissileObj = Planet(name, 0.1, randint(1,15)*pi/360, (255,148,92,255), (100,100,0,255))
+				MISSILES.append((newMissile,newMissileObj,randint(30,300)))
+
 			
+
 doit()
