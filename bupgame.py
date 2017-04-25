@@ -91,10 +91,20 @@ def doit():
 	
 	MISSILES = []
 	
+	lastclickloc = (0,0)
+	
 	while True: # main game loop
 		mouseClicked = False
 		iterationCount = iterationCount+1
-
+		if iterationCount%100 == 0: # Cleanup
+			MLIST = []
+			for (a,b,c) in MISSILES:
+				# print "Collecting garbage "+str(len(MISSILES))
+				if a.alive == True:
+					MLIST.append((a,b,c))
+				if len(MLIST) > 0:
+					MISSILES = MLIST
+		NEWMISSILES = []
 		# Input
 		for event in pygame.event.get():
 			if event.type == QUIT:
@@ -106,31 +116,39 @@ def doit():
  			elif event.type == MOUSEBUTTONUP:
 				if event.button == LEFT: # Have we clicked on an asteroid?
 					(px,py) = event.pos
-					for (missile,missileobj,mr) in MISSILES:
-						if missile.alive == True:
-							(mx,my) = missile.position
-							mr = missileobj.radiusAvg
-							#check if the distance between the objects is less than the combined radius
-							dx = px-mx
-							dy = py-my
-							distance = sqrt(dx**2+dy**2)
+					lx,ly = lastclickloc
+					dx = px-lx
+					dy = py-ly
+					if (dx**2+dy**2) > 4: # Suppress spam clicking in the same spot
+						lastclickloc = (px,py)
 
-							if distance < mr:
-								angle = atan2(dy,dx)
-								print missile.name+" destroyed "
-								missile.alive = False
-								
-								if mr > 20:
-									print missile.name+" fragmented "
-									(ang,speed) = missile.velocity
-									newMissile = Missile("Chunk",(mousex,mousey),speed/2)
-									newMissileObj = Planet(name, 0.1, randint(1,15)*pi/360, (192,148,92,255), (100,100,0,255))
-									MISSILES.append((newMissile,newMissileObj,int(mr)>>1))
-									newMissile = Missile("Chunk",(mousex,mousey),speed/2)
-									newMissileObj = Planet(name, 0.1, randint(1,15)*pi/360, (192,148,92,255), (100,100,0,255))
-									MISSILES.append((newMissile,newMissileObj,int(mr)>>1))				
-				
-  					mouseClicked = True
+						for (missile,missileobj,mr) in MISSILES:
+							if missile.alive == True:
+								(mx,my) = missile.position
+								mr = missileobj.radiusAvg
+								#check if the distance between the objects is less than the combined radius
+								dx = px-mx
+								dy = py-my
+								distance = sqrt(dx**2+dy**2)
+
+								if distance < mr*2 or distance < 20: # Kludgy
+									angle = atan2(dy,dx)
+									# print missile.name+" destroyed "
+									missile.alive = False
+									
+									if mr > 10:
+										# print missile.name+" fragmented "
+										(ang,speed) = missile.velocity
+										newDir = random()*2.0*pi
+										NUMFRAGS = randint(2,12)
+										dang = pi*2.0/NUMFRAGS
+										for i in xrange(0,NUMFRAGS):
+											newMissile = Missile("Fragment",(mx,my),(newDir+dang+dang/3*randint(-1,1),speed/randint(1,5)))
+											newMissileObj = Planet(name, 0.1, randint(1,15)*pi/360, (192,148,92,255), (100,100,0,255))
+											NEWMISSILES.append((newMissile,newMissileObj,int(mr)>>1))
+											dang = dang+dang
+					
+						mouseClicked = True
 				elif event.button == RIGHT: # Create a new asteroid
 					mousex, mousey = event.pos
 					(x,y) = event.pos
@@ -142,7 +160,7 @@ def doit():
 						speed = 5.0*random() #1.0/distance
 
 					missile = Missile("Chunk",(mousex,mousey),(random()*2.0*pi,speed))
-					missileObj = Planet(name, 0.1, randint(1,15)*pi/90, (192,148,92,255), (100,100,0,255))
+					missileObj = Planet(name, 0.1, randint(1,15)*pi/360, (192,148,92,255), (100,100,0,255))
 					MISSILES.append((missile,missileObj,randint(30,300)))
 
 					mouseClicked = True
@@ -215,11 +233,18 @@ def doit():
 
 					if distance < pr+mr:
 						angle = atan2(dy,dx)
-						print name+" has collided with "+missile.name+" at "+str(angle)
+						# print name+" has collided with "+missile.name+" at "+str(angle)
 						missile.alive = False
 
 						thePlanet.impacts.append((angle-thePlanet.rotation,mr,missile.velocity)) # An object of radius mr has impacted at angle
 					# print (px,py,pr,mx,my,mr)
 			thePlanet.impactsHandler() # Process impacts
-				
+			for (newMissile,newMissileObj,sz) in thePlanet.debris:
+				(mx,my) = newMissile.position
+				newMissile.position = (int(mx*scale)+(width>>1),int(my*scale)+(height>>1))
+				MISSILES.append((newMissile,newMissileObj,sz))
+			thePlanet.debris = []
+		for missile in NEWMISSILES:
+			MISSILES.append(missile)
+			
 doit()

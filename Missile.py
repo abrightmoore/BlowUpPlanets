@@ -23,6 +23,8 @@ class Missile:
 		self.name = name
 		self.position = position
 		self.velocity = velocity # Direction, speed
+		self.age = 0
+		#print position
 	
 	def accelerate(self,direction, speed):
 		ax = speed*cos(direction)
@@ -49,6 +51,10 @@ class Missile:
 		print "handleCollisionWithPlanet" # stub
 		
 	def draw(self,surface,colour):
+		self.age = self.age+1
+		if self.age > 10000:
+			self.alive = False
+			
 		if self.alive == True:
 			# print self.position
 			width = surface.get_width()

@@ -18,6 +18,7 @@ from pygame.locals import *
 #from numpy import *
 
 from Lines import *
+from Missile import Missile
 
 class Planet:
 	# Class variables shared by all instances go here
@@ -31,7 +32,9 @@ class Planet:
 		# Instance variables unique to each instance go here
 		self.alive = True
 		self.name = name # Label the planet for easy reference later
-		segments = 40 # initial number of sections around the circumference
+		segments = 80*radius # initial number of sections around the circumference
+		if segments < 7:
+			segments = 7
 		crustradius = radius
 		self.radiusAvg = crustradius
 		coreradius = crustradius / 3.0
@@ -41,13 +44,14 @@ class Planet:
 		self.crust = []
 		self.core = []
 		self.impacts = []
-		for i in xrange(0,segments):
+		for i in xrange(0,int(segments)):
 			self.crust.append((crustradius+randint(0,5)*0.01)) # ToDo: Add height variation
-			self.core.append((coreradius+randint(0,10)*0.01)) # ToDo: Add height variation
+			self.core.append((coreradius+randint(-3,3)*0.01)) # ToDo: Add height variation
 		self.angvelocity = angvelocity # angular velocity
 		self.surfacefeatures = []
 		self.ringing = 0
 		self.ringsize = 0
+		self.debris = []
 	
 	def addSurfaceFeature(self, angle, type, name, points):
 		self.surfacefeatures.append((angle,type,name,points))
@@ -77,24 +81,57 @@ class Planet:
 
 				angle = -pi
 				i = 0
-				R = []
+				R = [] # New crust
+				SF = [] # New surface features
 				
 				while angle < pi and i < len(self.crust):
+					# If the collision was with the surface:
 					if a >= angle-halfangledelta and a < angle+halfangledelta: # impact!
-						R.append((self.crust[i]-0.1))
-						# handle velocity vector
-						# add spin quantum for each collision, adjusted by the vector tangent to the "a" normal
-						mdir,spd = v
-						mdir = mdir - a # Find the angular difference
-						spd = sz*spd / 100
-						angvdelta = spd*sin(mdir) # tangent
-						print angvdelta
-						self.angvelocity = self.angvelocity - angvdelta*pi/180
-						self.ringing = self.ringing+abs(sz)+self.MAXRINGSIZE
-						self.ringsize = self.ringsize+abs(sz)
-						if self.ringsize > self.MAXRINGSIZE:
-							self.ringsize = self.MAXRINGSIZE
-					else:
+						# is there a surface feature here to absorb the impact?
+						breakCrust = True
+						fiveangledelta = angledelta*1
+						for (sfangle,sftype,sfname,sfpoints) in self.surfacefeatures:
+							buildingangle = sfangle+pi
+							while buildingangle < -pi:
+								buildingangle = buildingangle+self.TWOPI
+							while buildingangle > pi:
+								buildingangle = buildingangle-self.TWOPI
+
+							if a >= buildingangle-fiveangledelta and a < buildingangle+fiveangledelta: # Remove the surface feature
+								# print "Surface feature "+sfname+" of type "+sftype+" destroyed!"
+								if sz < 20:
+									breakCrust = False
+							else:
+								SF.append( (sfangle,sftype,sfname,sfpoints) ) # Keep this surface feature
+							self.surfacefeatures = SF # Replace the old list
+						if breakCrust == True: # collapse the crust
+							R.append((self.crust[i]-0.1*sz/10))
+							# handle velocity vector
+							# add spin quantum for each collision, adjusted by the vector tangent to the "a" normal
+							mdir,spd = v
+							mdir = mdir - a # Find the angular difference
+							spd = sz*spd / 100
+							angvdelta = spd*sin(mdir) # tangent
+							self.angvelocity = self.angvelocity - angvdelta*pi/180
+							self.ringing = self.ringing+abs(sz)+self.MAXRINGSIZE
+							self.ringsize = self.ringsize+abs(sz)
+							if self.ringsize > self.MAXRINGSIZE:
+								self.ringsize = self.MAXRINGSIZE
+
+							if sz >10:
+								# Debris
+								(debang,debspeed) = v
+								newDir = -debang+self.rotation
+								NUMFRAGS = randint(3,12)
+								dang = pi*2.0/720
+								for j in xrange(0,NUMFRAGS):								
+									newMissile = Missile("Debris",(1.2*cos(angle+self.rotation+pi),1.2*sin(angle+self.rotation+pi)),(newDir+dang*randint(-15,15),debspeed/(randint(3,12)*0.25)))
+									newMissileObj = Planet("Debris", 0.1, 0, (192,60,0,255), (255,100,0,255))
+									self.debris.append((newMissile,newMissileObj,int(sz)>>1))
+
+						else: # Keep this point
+							R.append((self.crust[i]))
+					else: # Keep this point
 						R.append((self.crust[i]))
 					i = i+1
 					angle = angle+angledelta
@@ -166,7 +203,6 @@ class Planet:
 
 			# Surface features
 			for (angle, type, name, points) in self.surfacefeatures:
-				a = angle+self.rotation
 				
 				# find the surface radius here
 				pos = 0
@@ -180,6 +216,8 @@ class Planet:
 					i = i+1
 
 				P = []
+				a = angle+self.rotation
+
 				for (x,y) in points:
 					featureangle = atan2(y,x)
 					featureradius = sqrt(x**2+y**2)
