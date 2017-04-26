@@ -41,6 +41,10 @@ class Missile:
 		self.velocity = (nd,ns)
 
 	def move(self):
+		self.age = self.age+1
+		if self.age > 1000: # Expire old objects after time (decay)
+			self.alive = False
+			
 		(x,y) = self.position
 		(dv,sv) = self.velocity
 		vx = sv*cos(dv)
@@ -51,9 +55,7 @@ class Missile:
 		print "handleCollisionWithPlanet" # stub
 		
 	def draw(self,surface,colour):
-		self.age = self.age+1
-		if self.age > 10000:
-			self.alive = False
+
 			
 		if self.alive == True:
 			# print self.position

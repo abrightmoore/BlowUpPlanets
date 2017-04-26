@@ -41,6 +41,7 @@ def doit():
 	LEFT = 1 # Mouse event
 	RIGHT = 3 # Mouse event
 	MAXCLICKFRAME = 16
+	MAXMISSILES = 100
 	COL_CLICK = (255,255,255,255)
 	img = pygame.image.load('input.png')
 	backgroundimage = img
@@ -95,8 +96,8 @@ def doit():
 			MLIST = []
 			for (a,b,c) in MISSILES:
 				# print "Collecting garbage "+str(len(MISSILES))
-				if a.alive == True:
-					MLIST.append((a,b,c))
+				if a.alive == True and c > 0: # Discard
+					MLIST.append((a,b,c-1)) # Shrink aged entities
 				if len(MLIST) > 0:
 					MISSILES = MLIST
 		NEWMISSILES = []
@@ -196,6 +197,8 @@ def doit():
 				(x,y) = missile.position
 				if x > -width and x < width<<1 and y > -height and y < height<<1: # only draw within a local area
 					missileobj.draw(surface,missile.position,radius)
+				else:
+					missile.alive = False
 		
 		NEWCLICKANIM = []
 		for (x,y,frame) in CLICKANIM:
@@ -217,13 +220,15 @@ def doit():
 		
 		# Display the score
 		scorelabel = scorefont.render(str(int(playerScore)) , 1, (255,190,120))
-		wavelabel = scorefont.render("W."+str(int(wavecount)) , 1, (128,190,255))
+		wavelabel = scorefont.render(str(int(wavecount)) , 1, (128,190,255))
+		missileslabel = scorefont.render(str(len(MISSILES)) , 1, (128,190,255))
 		
 		slw = scorelabel.get_width()
 		slh = scorelabel.get_height()
 
 		surface.blit(scorelabel, (ox-(slw>>1), oy-(slh>>1)))
 		surface.blit(wavelabel, (ox-(slw>>1), oy-(slh>>1)+10))
+		surface.blit(missileslabel, (0,0))
 		pygame.display.update()
 					
 		# Other Simulation updates
@@ -275,11 +280,12 @@ def doit():
 		
 		# Enemy wave logic (Temporary)
 		if iterationCount%wavelength == 0:
-			wavecount = wavecount +1
+			if len(MISSILES) < MAXMISSILES:
+				wavecount = wavecount +1
 		wavepos = wavepos+wavestep
 		if wavepos > pi*2.0:
 			wavepos = 0
-		if 10.0*random() < sin(wavepos): # Spawn a new asteroid
+		if 10.0*random() < sin(wavepos) and len(MISSILES) < 3*MAXMISSILES: # Spawn a new asteroid
 			radius = (width>>1)+width
 			# print radius
 			angle = random()*pi*2.0
