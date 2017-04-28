@@ -8,3 +8,11 @@ http://www.brightmoore.net/home/bup
 3. Collisions will collapse the crust of the planet.
 4. Collisions will cause the planet to spin wildly, making tactical choices difficult.
 5. Cities are built over time. Cities will save the crust from collapsing.
+
+![Screen Shot](https://pbs.twimg.com/media/C-hzm5hUMAEAjZ8.jpg)
+
+# Installation
+
+This is a Python game using PyGame. Download the package. Install any dependancies. Run with: python bupgame.py
+
+Contact @BlowUpPlanets on Twitter for help.
