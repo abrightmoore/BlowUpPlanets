@@ -26,6 +26,7 @@ class Planet:
 	TWOPI = pi*2.0
 	MAXSPIN = TWOPI/16
 	MAXRINGSIZE = 2 # pixels
+	SCALECORE = 1.25
 	# End Class variables
 	
 	def __init__(self, name, radius, angvelocity, colcrust, colcore):
@@ -38,6 +39,7 @@ class Planet:
 		crustradius = radius
 		self.radiusAvg = crustradius
 		coreradius = crustradius / 3.0
+		self.radiusAvgCore = coreradius
 		self.colcrust = colcrust
 		self.colcore = colcore
 		self.rotation = random()*pi*2.0
@@ -52,6 +54,7 @@ class Planet:
 		self.ringing = 0
 		self.ringsize = 0
 		self.debris = []
+		self.coreexposed = False
 	
 	def addSurfaceFeature(self, angle, type, name, points):
 		self.surfacefeatures.append((angle,type,name,points))
@@ -157,7 +160,12 @@ class Planet:
 		count = 0
 		angledelta = pi*2.0/len(self.crust)
 		radiusAvg = 0
+		(cr,cg,cb,ca) = self.colcrust
 		for (r) in self.crust:
+			if self.radiusAvgCore > r:
+				self.coreexposed = True
+				print "Game Over"
+
 			radiusAvg = radiusAvg + scale*r
 			a = count*angledelta+self.rotation
 			d = scale*r
@@ -182,7 +190,7 @@ class Planet:
 		CRUSTPIX = calcLinesSmooth(self.SMOOTHAMOUNT,P) # Creates a smooth line
 		for (x,y,z) in CRUSTPIX:
 			if x >= 0 and x < width and y >= 0 and y < height:
-				pixels[x][y] = self.colcrust
+				pixels[x][y] = (cr,cg,cb,ca) #self.colcrust
 		
 		if drawdetail == True:
 			P = [] # Points to interpolate with Chaikin
@@ -190,8 +198,8 @@ class Planet:
 			angledelta = pi*2.0/len(self.core)
 			for (r) in self.core:
 				a = count*angledelta+self.rotation
-				x = scale*r*cos(a)
-				y = scale*r*sin(a)
+				x = scale*r*cos(a)*self.SCALECORE
+				y = scale*r*sin(a)*self.SCALECORE
 				P.append((x+ox,y+oy,0)) # ToDo: Utilise z. Currently ignored
 				count = count+1
 			P.append(P[0])
@@ -200,7 +208,8 @@ class Planet:
 			for (x,y,z) in COREPIX:
 				if x >= 0 and x < width and y >= 0 and y < height:
 					pixels[x][y] = self.colcore
-
+					
+					
 			# Surface features
 			for (angle, type, name, points) in self.surfacefeatures:
 				
