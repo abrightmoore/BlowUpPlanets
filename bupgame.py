@@ -17,6 +17,7 @@ from Colours import *
 from ImageTools import *
 from Planet import Planet
 from Missile import Missile
+from Flare import Flare
 
 #import Palette # @abrightmoore
 pygame.init()
@@ -52,13 +53,14 @@ def doit():
 
 	surface = pygame.display.set_mode((width, height)) # A copy of the source image in size
 	surface.fill(COL_CANVAS) # Parchment colour to the canvas
-	pygame.display.set_caption('Blow Up Planets')
+	pygame.display.set_caption('Blow Up Planets - Astdestroyed')
 	mousex = 0
 	mousey = 0
 	fpsClock = pygame.time.Clock()
 	fpsClock.tick(FPS)
 	iterationCount = 0
 
+        Flares = []
 	PLANETS = []
 	TILESIZE = 600
 	
@@ -100,6 +102,12 @@ def doit():
 					MLIST.append((a,b,c-1)) # Shrink aged entities
 				if len(MLIST) > 0:
 					MISSILES = MLIST
+                        G = []
+                        for f in Flares:
+                            if f.alive == True:
+                                G.append(f)
+                        Flares = G
+					
 		NEWMISSILES = []
 		# Input
 		for event in pygame.event.get():
@@ -133,12 +141,17 @@ def doit():
 									# print missile.name+" destroyed "
 									missile.alive = False
 									playerScore = playerScore+mr
+
+                                                                        for i in xrange(0,randint(5,10)):
+                                                                                d = i*3
+                                                                                f = Flare((int(mx)+randint(-d,d+1),int(my)+randint(-d,d+1)), randint(3,20), (0,0), 600)
+                                                                                Flares.append(f)
 									
 									if mr > 10 and len(MISSILES) < 100:
 										# print missile.name+" fragmented "
 										(ang,speed) = missile.velocity
 										newDir = random()*2.0*pi
-										NUMFRAGS = randint(2,12)
+										NUMFRAGS = randint(2,3)
 										dang = pi*2.0/NUMFRAGS
 										for i in xrange(0,NUMFRAGS):
 											newMissile = Missile("Fragment",(mx,my),(newDir+dang+dang/3*randint(-1,1),speed/randint(1,5)))
@@ -185,7 +198,7 @@ def doit():
 				])				
 			
 			# thePlanet.rotate(rotationdelta)
-			thePlanet.draw(surface,(width>>1,height>>1),scale)
+			thePlanet.draw(surface,(width>>1,height>>1),scale>>1)
 
 		pixels = pygame.PixelArray(surface)
 		for x in xrange(0,numcols):
@@ -225,6 +238,10 @@ def doit():
 		
 		slw = scorelabel.get_width()
 		slh = scorelabel.get_height()
+
+                for f in Flares:
+                    f.draw(surface, (0,0))
+                    f.tick()
 
 		surface.blit(scorelabel, (ox-(slw>>1), oy-(slh>>1)))
 		surface.blit(wavelabel, (ox-(slw>>1), oy-(slh>>1)+10))
